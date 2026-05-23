@@ -8,10 +8,12 @@ from typing import Final
 
 import customtkinter as ctk
 
-from core.prompt_manager import PromptMode, list_modes
+from config import Settings
+from core.prompt_manager import AVAILABLE_MODES, DEFAULT_MODE
+from ui.settings_window import SettingsWindow
 
 StatusCallback = Callable[[str], None]
-ModeChangeCallback = Callable[[PromptMode], None]
+ModeChangeCallback = Callable[[str], None]
 
 
 class OverlayWindow:
@@ -20,7 +22,11 @@ class OverlayWindow:
     _WINDOW_TITLE: Final[str] = "ScreenAssist"
     _DEFAULT_GEOMETRY: Final[str] = "520x640"
 
-    def __init__(self) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
+        from config import settings as default_settings
+
+        self._settings = settings if settings is not None else default_settings
+        self._settings_window: SettingsWindow | None = None
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
@@ -30,7 +36,7 @@ class OverlayWindow:
         self._root.attributes("-topmost", True)
         self._root.resizable(True, True)
 
-        self._current_mode = PromptMode.CODE
+        self._current_mode = DEFAULT_MODE
         self._on_mode_change: ModeChangeCallback | None = None
 
         self._build_layout()
@@ -41,7 +47,7 @@ class OverlayWindow:
         return self._root
 
     @property
-    def current_mode(self) -> PromptMode:
+    def current_mode(self) -> str:
         return self._current_mode
 
     def on_mode_change(self, callback: ModeChangeCallback) -> None:
@@ -92,11 +98,11 @@ class OverlayWindow:
             side="left", padx=(0, 8)
         )
 
-        self._mode_var = ctk.StringVar(value=self._current_mode.value)
+        self._mode_var = ctk.StringVar(value=self._current_mode)
         self._mode_menu = ctk.CTkOptionMenu(
             mode_frame,
             variable=self._mode_var,
-            values=[mode.value for mode in list_modes()],
+            values=list(AVAILABLE_MODES.keys()),
             command=self._handle_mode_selected,
             width=160,
         )
@@ -129,6 +135,20 @@ class OverlayWindow:
         )
         self._exit_button.pack(side="right")
 
+        self._settings_button = ctk.CTkButton(
+            footer,
+            text="⚙ Settings",
+            command=self._handle_settings,
+            width=110,
+            height=32,
+            fg_color="transparent",
+            border_width=1,
+            border_color="#4a5568",
+            text_color="gray80",
+            hover_color="#2a2f3a",
+        )
+        self._settings_button.pack(side="left")
+
         self._response_box = ctk.CTkTextbox(
             container,
             font=ctk.CTkFont(family="Consolas", size=13),
@@ -142,9 +162,17 @@ class OverlayWindow:
         self._root.bind("<Escape>", lambda _event: self._root.withdraw())
 
     def _handle_mode_selected(self, value: str) -> None:
-        self._current_mode = PromptMode(value)
+        self._current_mode = value
         if self._on_mode_change is not None:
             self._on_mode_change(self._current_mode)
+
+    def _handle_settings(self) -> None:
+        """Open the settings window (single instance)."""
+        if self._settings_window is not None and self._settings_window.is_open():
+            self._settings_window.focus()
+            return
+
+        self._settings_window = SettingsWindow(self._root, self._settings)
 
     def _handle_exit(self) -> None:
         """Close the overlay and terminate the application."""

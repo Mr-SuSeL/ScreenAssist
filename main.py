@@ -9,8 +9,8 @@ import keyboard
 from loguru import logger
 
 from config import settings
-from core.prompt_manager import PromptMode, get_system_prompt
-from core.screen_capture import ScreenCaptureError, capture_primary_monitor
+from core.prompt_manager import get_system_prompt
+from core.screen_capture import ScreenCaptureError, capture_monitor, log_available_monitors
 from core.vision_engine import VisionClient, VisionClientError
 from ui.overlay import OverlayWindow
 
@@ -19,7 +19,7 @@ class Application:
     """Orchestrates UI, hotkey handling, and the vision pipeline."""
 
     def __init__(self) -> None:
-        self._overlay = OverlayWindow()
+        self._overlay = OverlayWindow(settings)
         self._vision_client = VisionClient(settings)
         self._processing_lock = threading.Lock()
         self._shutdown = threading.Event()
@@ -34,6 +34,8 @@ class Application:
             settings.model_name,
             settings.gemini_model_name,
         )
+        log_available_monitors()
+        logger.info("Capture target: monitor index {}", settings.capture_monitor_index)
 
         hotkey_thread = threading.Thread(
             target=self._register_hotkey,
@@ -71,11 +73,14 @@ class Application:
     def _run_capture_pipeline(self) -> None:
         try:
             self._overlay.set_status("Capturing...")
-            capture = capture_primary_monitor(jpeg_quality=settings.jpeg_quality)
+            capture = capture_monitor(
+                settings.capture_monitor_index,
+                jpeg_quality=settings.jpeg_quality,
+            )
 
             mode = self._overlay.current_mode
             prompt = get_system_prompt(mode)
-            self._overlay.set_status(f"Analyzing ({mode.value})...")
+            self._overlay.set_status(f"Analyzing ({mode})...")
 
             result = self._vision_client.analyze_image(
                 image_base64=capture.base64_data,
@@ -86,7 +91,7 @@ class Application:
             self._overlay.set_status(
                 f"Done ({capture.width}x{capture.height}). Press F8 again."
             )
-            logger.success("Analysis completed for mode={}", mode.value)
+            logger.success("Analysis completed for mode={}", mode)
         except ScreenCaptureError as exc:
             message = f"Error: Capture failed — {exc}"
             logger.error(message)
@@ -102,8 +107,8 @@ class Application:
             self._processing_lock.release()
 
     @staticmethod
-    def _on_mode_change(mode: PromptMode) -> None:
-        logger.info("Prompt mode changed to {}", mode.value)
+    def _on_mode_change(mode: str) -> None:
+        logger.info("Prompt mode changed to {}", mode)
 
     @staticmethod
     def _configure_logging() -> None:

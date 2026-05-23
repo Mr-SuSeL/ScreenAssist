@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     jpeg_quality: int = 85
     hotkey: str = "f8"
+    capture_monitor_index: int = 1
 
     model_config = SettingsConfigDict(
         env_file=".env",
