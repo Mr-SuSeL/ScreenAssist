@@ -112,6 +112,23 @@ class OverlayWindow:
         )
         self._status_label.pack(fill="x", pady=(0, 8))
 
+        footer = ctk.CTkFrame(container, fg_color="transparent")
+        footer.pack(side="bottom", fill="x", pady=(12, 0))
+
+        self._exit_button = ctk.CTkButton(
+            footer,
+            text="Exit",
+            command=self._handle_exit,
+            width=100,
+            height=32,
+            fg_color="transparent",
+            border_width=1,
+            border_color="#8b3a3a",
+            text_color="#e07070",
+            hover_color="#3d2020",
+        )
+        self._exit_button.pack(side="right")
+
         self._response_box = ctk.CTkTextbox(
             container,
             font=ctk.CTkFont(family="Consolas", size=13),
@@ -128,6 +145,10 @@ class OverlayWindow:
         self._current_mode = PromptMode(value)
         if self._on_mode_change is not None:
             self._on_mode_change(self._current_mode)
+
+    def _handle_exit(self) -> None:
+        """Close the overlay and terminate the application."""
+        self._root.destroy()
 
     def _schedule(self, callback: Callable[[], None]) -> None:
         """Schedule a zero-argument callback on the Tkinter main thread."""
