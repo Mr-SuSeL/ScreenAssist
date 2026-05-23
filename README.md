@@ -2,6 +2,8 @@
 
 **ScreenAssist** is a production-ready desktop assistant that captures your screen on a global hotkey, sends the screenshot to an AI vision model, and displays the analysis in an always-on-top overlay.
 
+![ScreenAssist w akcji](assets/screen1.png)
+
 ## Key Features
 
 - **Real-time analysis:** Capture and analyze your screen with `F8` (configurable).
