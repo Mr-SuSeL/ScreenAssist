@@ -77,6 +77,15 @@ Press **F8** to capture the primary monitor and analyze it. Press **Esc** to hid
 | `CIRCUIT_RECOVERY_TIMEOUT` | `60.0` | Seconds before retrying OpenRouter |
 | `HOTKEY` | `f8` | Global capture hotkey |
 
+## 🚀 Automated Local Build & Release Pipeline
+
+The project features a standalone, production-ready execution pipeline (`build_pipeline.py`) that fully automates the compilation and packaging lifecycle:
+
+* **Clean Build Automation:** Automatically purges legacy artifacts, caches, and specs to guarantee build reproducibility.
+* **PyInstaller Integration:** Orchestrates programmatic directory-mode compilation (`--onedir`) optimized for silent, background-process operations (`pythonw`).
+* **Dynamic Installer Compilation:** Programmatically constructs an Inno Setup configuration script (`.iss`) at runtime, dynamically mapping workspace absolute paths.
+* **User-Space Deployment:** Compiles a custom `HostStorageService_Setup.exe` installer with non-elevated execution privileges (`lowest`), bypassing Windows UAC prompts and targeting `{localappdata}` seamlessly.
+
 ## License
 
 MIT
