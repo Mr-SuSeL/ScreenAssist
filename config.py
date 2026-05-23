@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     jpeg_quality: int = 85
     hotkey: str = "f8"
     capture_monitor_index: int = 1
+    custom_prompt: str = "You are a helpful assistant. Provide concise answers."
 
     model_config = SettingsConfigDict(
         env_file=str(app_dir() / ".env"),
@@ -41,6 +42,14 @@ class Settings(BaseSettings):
         if value == "":
             return None
         return value
+
+    @field_validator("custom_prompt", mode="before")
+    @classmethod
+    def _decode_custom_prompt(cls, value: object) -> object:
+        """Decode escaped newlines from .env storage."""
+        if not isinstance(value, str):
+            return value
+        return value.replace("\\n", "\n")
 
 
 settings = Settings()

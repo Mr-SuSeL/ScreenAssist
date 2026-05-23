@@ -28,7 +28,7 @@ class SettingsWindow:
 
         self._window = ctk.CTkToplevel(parent)
         self._window.title("ScreenAssist — Settings")
-        self._window.geometry("460x220")
+        self._window.geometry("500x440")
         self._window.resizable(False, False)
         self._window.attributes("-topmost", True)
         self._window.transient(parent)
@@ -54,7 +54,7 @@ class SettingsWindow:
             text="Select the monitor ScreenAssist captures from the tray action.",
             font=ctk.CTkFont(size=12),
             text_color="gray70",
-        ).pack(anchor="w", pady=(0, 12))
+        ).pack(anchor="w", pady=(0, 8))
 
         self._monitor_var = ctk.StringVar(value="Loading monitors...")
         self._monitor_menu = ctk.CTkOptionMenu(
@@ -62,10 +62,25 @@ class SettingsWindow:
             variable=self._monitor_var,
             values=["Loading monitors..."],
             command=self._handle_monitor_selected,
-            width=400,
+            width=460,
             state="disabled",
         )
-        self._monitor_menu.pack(fill="x", pady=(0, 8))
+        self._monitor_menu.pack(fill="x", pady=(0, 16))
+
+        ctk.CTkLabel(
+            container,
+            text="Custom Prompt / User Persona Guidelines:",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).pack(anchor="w", pady=(0, 6))
+
+        self._custom_prompt_box = ctk.CTkTextbox(
+            container,
+            height=120,
+            font=ctk.CTkFont(size=13),
+            wrap="word",
+        )
+        self._custom_prompt_box.pack(fill="x", pady=(0, 12))
+        self._custom_prompt_box.insert("1.0", self._settings.custom_prompt)
 
         self._status_label = ctk.CTkLabel(
             container,
@@ -83,7 +98,6 @@ class SettingsWindow:
             text="Save",
             command=self._handle_save,
             width=100,
-            state="disabled",
         )
         self._save_button.pack(side="right", padx=(8, 0))
 
@@ -140,7 +154,6 @@ class SettingsWindow:
         self._status_label.configure(
             text=f"Active capture target: monitor index {self._settings.capture_monitor_index}"
         )
-        self._save_button.configure(state="normal")
         self._loading = False
 
     def _show_monitor_error(self, message: str) -> None:
@@ -159,12 +172,18 @@ class SettingsWindow:
         logger.info("Capture monitor changed to index {}", index)
 
     def _handle_save(self) -> None:
+        self._settings.custom_prompt = self._custom_prompt_box.get("1.0", "end-1c").strip()
+
         try:
             persist_settings(self._settings)
-            self._status_label.configure(text="Settings saved to .env")
+            logger.info("Settings saved (monitor={}, custom prompt {} chars)", 
+                         self._settings.capture_monitor_index, len(self._settings.custom_prompt))
         except OSError as exc:
             logger.error("Failed to save settings: {}", exc)
             self._status_label.configure(text=f"Save failed: {exc}")
+            return
+
+        self._close()
 
     def focus(self) -> None:
         """Bring the settings window to the front if it is open."""

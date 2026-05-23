@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from config import settings
+
 AVAILABLE_MODES: dict[str, str] = {
     "code": (
         "You are a senior software engineer doing a quick code review from a screenshot. "
@@ -44,6 +46,7 @@ EXECUTION RULES:
         "screenshot for grammar, clarity, tone, and spelling. Provide corrected versions "
         "where helpful and explain key improvements concisely."
     ),
+    "custom": "User-defined system prompt. Fully customizable in Settings.",
 }
 
 DEFAULT_MODE: str = "code"
@@ -53,7 +56,17 @@ def get_system_prompt(mode: str) -> str:
     """Return the system prompt for the given analysis mode."""
     if mode not in AVAILABLE_MODES:
         raise KeyError(f"Unknown prompt mode: {mode!r}. Available: {list(AVAILABLE_MODES)}")
-    return AVAILABLE_MODES[mode]
+
+    user_guidelines = settings.custom_prompt.strip()
+
+    if mode == "custom":
+        return user_guidelines or settings.custom_prompt
+
+    base_prompt = AVAILABLE_MODES[mode]
+    if not user_guidelines:
+        return base_prompt
+
+    return f"{base_prompt}\n\nAdditional user guidelines:\n{user_guidelines}"
 
 
 def list_modes() -> list[str]:
