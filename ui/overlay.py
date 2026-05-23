@@ -17,7 +17,7 @@ ModeChangeCallback = Callable[[PromptMode], None]
 class OverlayWindow:
     """Floating overlay for status updates and AI responses."""
 
-    _WINDOW_TITLE: Final[str] = "AI Screen Suffler"
+    _WINDOW_TITLE: Final[str] = "ScreenAssist"
     _DEFAULT_GEOMETRY: Final[str] = "520x640"
 
     def __init__(self) -> None:
@@ -50,7 +50,7 @@ class OverlayWindow:
 
     def set_status(self, message: str) -> None:
         """Update the status label (thread-safe)."""
-        self._schedule(self._status_label.configure, text=message)
+        self._schedule(lambda: self._status_label.configure(text=message))
 
     def set_response(self, text: str) -> None:
         """Replace the response text area content (thread-safe)."""
@@ -72,7 +72,7 @@ class OverlayWindow:
 
         header = ctk.CTkLabel(
             container,
-            text="AI Screen Suffler",
+            text="ScreenAssist",
             font=ctk.CTkFont(size=22, weight="bold"),
         )
         header.pack(anchor="w", pady=(0, 4))
@@ -129,6 +129,6 @@ class OverlayWindow:
         if self._on_mode_change is not None:
             self._on_mode_change(self._current_mode)
 
-    def _schedule(self, callback: Callable[..., None], *args: object) -> None:
-        """Schedule UI updates on the main thread."""
-        self._root.after(0, lambda: callback(*args))
+    def _schedule(self, callback: Callable[[], None]) -> None:
+        """Schedule a zero-argument callback on the Tkinter main thread."""
+        self._root.after(0, callback)
