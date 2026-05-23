@@ -51,7 +51,7 @@ class OverlayWindow:
         self._window_y = 0
 
         self._build_layout()
-        self.set_status("Ready — use the tray icon to capture and analyze.")
+        self.set_status("Ready — press F8 or use tray to analyze.")
 
     @property
     def root(self) -> ctk.CTkToplevel:
@@ -135,7 +135,7 @@ class OverlayWindow:
 
         hint = ctk.CTkLabel(
             self._header_frame,
-            text="Tray — analyze  •  Esc — hide window  •  Drag header to move",
+            text="F8 or tray — analyze  •  Esc — hide window  •  Drag header to move",
             font=ctk.CTkFont(size=12),
             text_color="gray70",
         )

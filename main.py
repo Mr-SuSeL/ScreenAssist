@@ -8,6 +8,7 @@ import threading
 from loguru import logger
 
 from config import settings
+from core.hotkey import NativeHotkeyListener
 from core.paths import log_file_path
 from core.prompt_manager import get_system_prompt
 from core.screen_capture import ScreenCaptureError, capture_monitor, log_available_monitors
@@ -30,6 +31,7 @@ class Application:
             on_settings=self._overlay.open_settings,
             on_exit=self.shutdown,
         )
+        self._hotkey = NativeHotkeyListener(self.trigger_capture)
 
         self._overlay.on_mode_change(self._on_mode_change)
         self._overlay.on_shutdown(self.shutdown)
@@ -46,6 +48,7 @@ class Application:
         logger.info("Capture target: monitor index {}", settings.capture_monitor_index)
 
         self._tray.start()
+        self._hotkey.start()
 
         try:
             self._overlay.run()
@@ -55,7 +58,7 @@ class Application:
     def trigger_capture(self) -> None:
         """Start the capture pipeline unless one is already running."""
         if not self._processing_lock.acquire(blocking=False):
-            logger.warning("Capture already in progress — ignoring tray trigger")
+            logger.warning("Capture already in progress — ignoring trigger")
             self._overlay.set_status("Busy — analysis already in progress.")
             return
 
@@ -73,6 +76,7 @@ class Application:
 
         logger.info("Shutdown requested")
         self._shutdown.set()
+        self._hotkey.stop()
         self._tray.stop()
         self._overlay.shutdown()
 
@@ -96,7 +100,7 @@ class Application:
 
             self._overlay.set_response(result)
             self._overlay.set_status(
-                f"Done ({capture.width}x{capture.height}). Use tray to analyze again."
+                f"Done ({capture.width}x{capture.height}). Press F8 or use tray again."
             )
             logger.success("Analysis completed for mode={}", mode)
         except ScreenCaptureError as exc:
@@ -115,6 +119,7 @@ class Application:
 
     def _finalize_shutdown(self) -> None:
         self._shutdown.set()
+        self._hotkey.stop()
         self._tray.stop()
         self._vision_client.close()
         logger.info("Application shut down cleanly")
