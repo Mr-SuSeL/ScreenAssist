@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import ctypes
 import sys
 import threading
 from collections.abc import Callable
 
 from loguru import logger
+
+# wintypes.LRESULT is absent on some Python builds; c_ssize_t matches Win64 LRESULT.
+LRESULT = ctypes.c_ssize_t
 
 WM_HOTKEY = 0x0312
 WM_QUIT = 0x0012
@@ -14,7 +18,7 @@ MOD_NONE = 0
 VK_F8 = 0x77
 HOTKEY_ID = 1
 
-HWND_MESSAGE = -3
+HWND_MESSAGE = ctypes.c_void_p(-3)
 
 
 class NativeHotkeyListener:
@@ -58,7 +62,6 @@ class NativeHotkeyListener:
             return
 
         if self._thread_id is not None:
-            ctypes = __import__("ctypes")
             user32 = ctypes.windll.user32
             user32.PostThreadMessageW(self._thread_id, WM_QUIT, 0, 0)
 
@@ -72,16 +75,40 @@ class NativeHotkeyListener:
         self._hwnd = None
 
     def _run_message_loop(self) -> None:
-        import ctypes
         from ctypes import wintypes
 
         user32 = ctypes.windll.user32
         kernel32 = ctypes.windll.kernel32
+        user32.DefWindowProcW.restype = LRESULT
+        user32.DefWindowProcW.argtypes = [
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        ]
+        user32.DispatchMessageW.restype = LRESULT
+        kernel32.GetModuleHandleW.argtypes = [wintypes.LPCWSTR]
+        kernel32.GetModuleHandleW.restype = wintypes.HINSTANCE
+        user32.CreateWindowExW.argtypes = [
+            wintypes.DWORD,
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.HWND,
+            wintypes.HMENU,
+            wintypes.HINSTANCE,
+            wintypes.LPVOID,
+        ]
+        user32.CreateWindowExW.restype = wintypes.HWND
 
         self._thread_id = kernel32.GetCurrentThreadId()
 
         WNDPROC = ctypes.WINFUNCTYPE(
-            wintypes.LRESULT,
+            LRESULT,
             wintypes.HWND,
             wintypes.UINT,
             wintypes.WPARAM,
@@ -108,7 +135,7 @@ class NativeHotkeyListener:
                 ("cbWndExtra", ctypes.c_int),
                 ("hInstance", wintypes.HINSTANCE),
                 ("hIcon", wintypes.HICON),
-                ("hCursor", wintypes.HCURSOR),
+                ("hCursor", wintypes.HANDLE),
                 ("hbrBackground", wintypes.HBRUSH),
                 ("lpszMenuName", wintypes.LPCWSTR),
                 ("lpszClassName", wintypes.LPCWSTR),
