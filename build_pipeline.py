@@ -324,13 +324,23 @@ def main() -> int:
         clean_old_artifacts()
         run_pyinstaller()
         iss_path = generate_inno_script()
-        installer_path = compile_installer(iss_path)
+
+        installer_path: Path | None = None
+        try:
+            installer_path = compile_installer(iss_path)
+        except FileNotFoundError:
+            LOGGER.warning(
+                "Inno Setup not found. Skipping installer creation. "
+                "Standalone production build in dist/ is ready!"
+            )
+
         post_build_cleanup()
 
         LOGGER.info("=" * 60)
         LOGGER.info("BUILD SUCCESSFUL")
         LOGGER.info("Application bundle : %s", ROOT_DIR / "dist" / APP_NAME)
-        LOGGER.info("Installer package  : %s", installer_path)
+        if installer_path is not None:
+            LOGGER.info("Installer package  : %s", installer_path)
         LOGGER.info("=" * 60)
         return 0
 

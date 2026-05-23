@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['main.py'],
+    ['C:\\Users\\Admin\\Desktop\\ScreenAssist\\main.py'],
     pathex=[],
     binaries=[],
     datas=[],
