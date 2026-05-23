@@ -45,6 +45,10 @@ class OverlayWindow:
         apply_stealth_window(self._root, borderless=True)
 
         self._current_mode = DEFAULT_MODE
+        self._drag_x = 0
+        self._drag_y = 0
+        self._window_x = 0
+        self._window_y = 0
 
         self._build_layout()
         self.set_status("Ready — use the tray icon to capture and analyze.")
@@ -119,20 +123,25 @@ class OverlayWindow:
         container = ctk.CTkFrame(self._root, corner_radius=12)
         container.pack(fill="both", expand=True, padx=16, pady=16)
 
+        self._header_frame = ctk.CTkFrame(container, fg_color="transparent", corner_radius=0)
+        self._header_frame.pack(fill="x", pady=(0, 12))
+
         header = ctk.CTkLabel(
-            container,
+            self._header_frame,
             text="ScreenAssist",
             font=ctk.CTkFont(size=22, weight="bold"),
         )
         header.pack(anchor="w", pady=(0, 4))
 
         hint = ctk.CTkLabel(
-            container,
-            text="Tray — analyze  •  Esc — hide window",
+            self._header_frame,
+            text="Tray — analyze  •  Esc — hide window  •  Drag header to move",
             font=ctk.CTkFont(size=12),
             text_color="gray70",
         )
-        hint.pack(anchor="w", pady=(0, 12))
+        hint.pack(anchor="w")
+
+        self._bind_drag_handlers(self._header_frame, header, hint)
 
         mode_frame = ctk.CTkFrame(container, fg_color="transparent")
         mode_frame.pack(fill="x", pady=(0, 12))
@@ -214,6 +223,27 @@ class OverlayWindow:
             self._show_window()
         else:
             self._root.withdraw()
+
+    def _bind_drag_handlers(self, *widgets: tk.Misc) -> None:
+        """Attach drag bindings to the header region and its child widgets."""
+        for widget in widgets:
+            widget.bind("<Button-1>", self._start_drag)
+            widget.bind("<B1-Motion>", self._drag_window)
+
+    def _start_drag(self, event: tk.Event) -> None:
+        """Capture the initial pointer position when the user begins dragging."""
+        self._drag_x = event.x_root
+        self._drag_y = event.y_root
+        self._window_x = self._root.winfo_x()
+        self._window_y = self._root.winfo_y()
+
+    def _drag_window(self, event: tk.Event) -> None:
+        """Move the borderless window according to pointer delta."""
+        delta_x = event.x_root - self._drag_x
+        delta_y = event.y_root - self._drag_y
+        new_x = self._window_x + delta_x
+        new_y = self._window_y + delta_y
+        self._root.geometry(f"+{new_x}+{new_y}")
 
     def _handle_mode_selected(self, value: str) -> None:
         self._current_mode = value
