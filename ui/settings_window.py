@@ -11,6 +11,7 @@ from loguru import logger
 
 from core.env_store import persist_settings
 from core.screen_capture import MonitorInfo, list_monitors
+from ui.stealth import apply_stealth_window
 
 if TYPE_CHECKING:
     from config import Settings
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 class SettingsWindow:
     """Modal settings panel for monitor selection and .env persistence."""
 
-    def __init__(self, parent: ctk.CTk, settings: Settings) -> None:
+    def __init__(self, parent: ctk.CTkBaseClass, settings: Settings) -> None:
         self._settings = settings
         self._monitors: list[MonitorInfo] = []
         self._label_to_index: dict[str, int] = {}
@@ -32,6 +33,7 @@ class SettingsWindow:
         self._window.attributes("-topmost", True)
         self._window.transient(parent)
         self._window.grab_set()
+        apply_stealth_window(self._window)
 
         self._build_layout()
         self._load_monitors_async()
@@ -49,7 +51,7 @@ class SettingsWindow:
 
         ctk.CTkLabel(
             container,
-            text="Select the monitor ScreenAssist captures on F8.",
+            text="Select the monitor ScreenAssist captures from the tray action.",
             font=ctk.CTkFont(size=12),
             text_color="gray70",
         ).pack(anchor="w", pady=(0, 12))
@@ -173,7 +175,13 @@ class SettingsWindow:
         """Return True when the settings window is currently visible."""
         return self._window.winfo_exists()
 
+    def close(self) -> None:
+        """Close the settings window."""
+        self._close()
+
     def _close(self) -> None:
+        if not self._window.winfo_exists():
+            return
         self._window.grab_release()
         self._window.destroy()
 

@@ -1,4 +1,4 @@
-"""CustomTkinter always-on-top overlay window."""
+"""CustomTkinter always-on-top stealth overlay window."""
 
 from __future__ import annotations
 
@@ -11,13 +11,15 @@ import customtkinter as ctk
 from config import Settings
 from core.prompt_manager import AVAILABLE_MODES, DEFAULT_MODE
 from ui.settings_window import SettingsWindow
+from ui.stealth import apply_stealth_window
 
 StatusCallback = Callable[[str], None]
 ModeChangeCallback = Callable[[str], None]
+ShutdownCallback = Callable[[], None]
 
 
 class OverlayWindow:
-    """Floating overlay for status updates and AI responses."""
+    """Floating stealth overlay for status updates and AI responses."""
 
     _WINDOW_TITLE: Final[str] = "ScreenAssist"
     _DEFAULT_GEOMETRY: Final[str] = "520x640"
@@ -27,23 +29,28 @@ class OverlayWindow:
 
         self._settings = settings if settings is not None else default_settings
         self._settings_window: SettingsWindow | None = None
+        self._on_mode_change: ModeChangeCallback | None = None
+        self._on_shutdown: ShutdownCallback | None = None
+
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
-        self._root = ctk.CTk()
+        self._master = tk.Tk()
+        self._master.withdraw()
+
+        self._root = ctk.CTkToplevel(self._master)
         self._root.title(self._WINDOW_TITLE)
         self._root.geometry(self._DEFAULT_GEOMETRY)
-        self._root.attributes("-topmost", True)
         self._root.resizable(True, True)
+        apply_stealth_window(self._root, borderless=True)
 
         self._current_mode = DEFAULT_MODE
-        self._on_mode_change: ModeChangeCallback | None = None
 
         self._build_layout()
-        self.set_status("Ready — press F8 to capture and analyze.")
+        self.set_status("Ready — use the tray icon to capture and analyze.")
 
     @property
-    def root(self) -> ctk.CTk:
+    def root(self) -> ctk.CTkToplevel:
         return self._root
 
     @property
@@ -53,6 +60,10 @@ class OverlayWindow:
     def on_mode_change(self, callback: ModeChangeCallback) -> None:
         """Register a callback invoked when the user switches prompt mode."""
         self._on_mode_change = callback
+
+    def on_shutdown(self, callback: ShutdownCallback) -> None:
+        """Register a callback invoked when the user requests application exit."""
+        self._on_shutdown = callback
 
     def set_status(self, message: str) -> None:
         """Update the status label (thread-safe)."""
@@ -68,9 +79,41 @@ class OverlayWindow:
 
         self._schedule(_update)
 
+    def show(self) -> None:
+        """Show the overlay on the main thread."""
+        self._schedule(self._show_window)
+
+    def hide(self) -> None:
+        """Hide the overlay on the main thread."""
+        self._schedule(self._root.withdraw)
+
+    def toggle_visibility(self) -> None:
+        """Toggle overlay visibility on the main thread."""
+        self._schedule(self._toggle_visibility)
+
+    def open_settings(self) -> None:
+        """Open the settings dialog on the main thread."""
+        self._schedule(self._handle_settings)
+
     def run(self) -> None:
-        """Start the Tkinter main loop."""
-        self._root.mainloop()
+        """Start the Tkinter main loop on the hidden master window."""
+        self._master.mainloop()
+
+    def shutdown(self) -> None:
+        """Destroy overlay windows and stop the Tkinter loop."""
+        def _destroy() -> None:
+            if self._settings_window is not None and self._settings_window.is_open():
+                self._settings_window.close()
+            if self._root.winfo_exists():
+                self._root.destroy()
+            if self._master.winfo_exists():
+                self._master.quit()
+                self._master.destroy()
+
+        if threading_main_safe():
+            _destroy()
+        else:
+            self._schedule(_destroy)
 
     def _build_layout(self) -> None:
         container = ctk.CTkFrame(self._root, corner_radius=12)
@@ -85,7 +128,7 @@ class OverlayWindow:
 
         hint = ctk.CTkLabel(
             container,
-            text="F8 — capture screen  •  Esc — hide window",
+            text="Tray — analyze  •  Esc — hide window",
             font=ctk.CTkFont(size=12),
             text_color="gray70",
         )
@@ -161,6 +204,17 @@ class OverlayWindow:
 
         self._root.bind("<Escape>", lambda _event: self._root.withdraw())
 
+    def _show_window(self) -> None:
+        self._root.deiconify()
+        self._root.lift()
+        self._root.focus_force()
+
+    def _toggle_visibility(self) -> None:
+        if self._root.state() == "withdrawn":
+            self._show_window()
+        else:
+            self._root.withdraw()
+
     def _handle_mode_selected(self, value: str) -> None:
         self._current_mode = value
         if self._on_mode_change is not None:
@@ -176,8 +230,19 @@ class OverlayWindow:
 
     def _handle_exit(self) -> None:
         """Close the overlay and terminate the application."""
-        self._root.destroy()
+        if self._on_shutdown is not None:
+            self._on_shutdown()
+        else:
+            self.shutdown()
 
     def _schedule(self, callback: Callable[[], None]) -> None:
         """Schedule a zero-argument callback on the Tkinter main thread."""
-        self._root.after(0, callback)
+        if self._master.winfo_exists():
+            self._master.after(0, callback)
+
+
+def threading_main_safe() -> bool:
+    """Return True when called from the Tkinter main thread."""
+    import threading
+
+    return threading.current_thread() is threading.main_thread()

@@ -8,7 +8,9 @@ from loguru import logger
 
 from config import Settings
 
-ENV_PATH = Path(".env")
+from core.paths import app_dir
+
+ENV_PATH = app_dir() / ".env"
 
 
 def persist_settings(settings: Settings, env_path: Path = ENV_PATH) -> None:

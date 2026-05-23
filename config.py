@@ -5,6 +5,8 @@ from typing import Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from core.paths import app_dir
+
 
 class Settings(BaseSettings):
     """Validated settings sourced from environment / .env file."""
@@ -27,7 +29,7 @@ class Settings(BaseSettings):
     capture_monitor_index: int = 1
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(app_dir() / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
